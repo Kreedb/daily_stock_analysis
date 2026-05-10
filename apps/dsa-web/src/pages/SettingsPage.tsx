@@ -141,14 +141,14 @@ function formatEnvBackupFilename(isDesktopRuntime: boolean) {
 
 const SettingsPage: React.FC = () => {
   const { passwordChangeable } = useAuth();
-  const [desktopActionError, setDesktopActionError] = useState<ParsedApiError | null>(null);
-  const [desktopActionSuccess, setDesktopActionSuccess] = useState<string>('');
+  const [envBackupActionError, setEnvBackupActionError] = useState<ParsedApiError | null>(null);
+  const [envBackupActionSuccess, setEnvBackupActionSuccess] = useState<string>('');
   const [isExportingEnv, setIsExportingEnv] = useState(false);
   const [isImportingEnv, setIsImportingEnv] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [desktopUpdateState, setDesktopUpdateState] = useState<DesktopUpdateState | null>(null);
   const [isCheckingDesktopUpdate, setIsCheckingDesktopUpdate] = useState(false);
-  const desktopImportRef = useRef<HTMLInputElement | null>(null);
+  const envBackupImportRef = useRef<HTMLInputElement | null>(null);
   const desktopRuntimeApi = getDesktopRuntimeApi();
   const isDesktopRuntime = Boolean(desktopRuntimeApi);
   const canCheckDesktopUpdate = Boolean(
@@ -304,11 +304,11 @@ const SettingsPage: React.FC = () => {
       : activeCategory === 'agent'
         ? rawActiveItems.filter((item) => !AGENT_HIDDEN_KEYS.has(item.key))
       : rawActiveItems;
-  const desktopActionDisabled = isLoading || isSaving || isExportingEnv || isImportingEnv;
+  const envBackupActionDisabled = isLoading || isSaving || isExportingEnv || isImportingEnv;
 
-  const downloadDesktopEnv = async () => {
-    setDesktopActionError(null);
-    setDesktopActionSuccess('');
+  const downloadEnvBackup = async () => {
+    setEnvBackupActionError(null);
+    setEnvBackupActionSuccess('');
     setIsExportingEnv(true);
     try {
       const payload = await systemConfigApi.exportEnv();
@@ -321,25 +321,25 @@ const SettingsPage: React.FC = () => {
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      setDesktopActionSuccess('已导出当前已保存的 .env 备份。');
+      setEnvBackupActionSuccess('已导出当前已保存的 .env 备份。');
     } catch (error: unknown) {
-      setDesktopActionError(getParsedApiError(error));
+      setEnvBackupActionError(getParsedApiError(error));
     } finally {
       setIsExportingEnv(false);
     }
   };
 
-  const beginDesktopImport = () => {
-    setDesktopActionError(null);
-    setDesktopActionSuccess('');
+  const beginEnvBackupImport = () => {
+    setEnvBackupActionError(null);
+    setEnvBackupActionSuccess('');
     if (hasDirty) {
       setShowImportConfirm(true);
       return;
     }
-    desktopImportRef.current?.click();
+    envBackupImportRef.current?.click();
   };
 
-  const handleDesktopImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEnvBackupImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     setShowImportConfirm(false);
@@ -347,8 +347,8 @@ const SettingsPage: React.FC = () => {
       return;
     }
 
-    setDesktopActionError(null);
-    setDesktopActionSuccess('');
+    setEnvBackupActionError(null);
+    setEnvBackupActionSuccess('');
     setIsImportingEnv(true);
     try {
       const content = await file.text();
@@ -359,7 +359,7 @@ const SettingsPage: React.FC = () => {
       });
       const reloaded = await load();
       if (!reloaded) {
-        setDesktopActionError(createParsedApiError({
+        setEnvBackupActionError(createParsedApiError({
           title: '配置已导入但刷新失败',
           message: '备份已导入，但重新加载配置失败，请手动重载页面。',
           rawMessage: 'Env import succeeded but config refresh failed',
@@ -367,9 +367,9 @@ const SettingsPage: React.FC = () => {
         }));
         return;
       }
-      setDesktopActionSuccess('已导入 .env 备份并重新加载配置。');
+      setEnvBackupActionSuccess('已导入 .env 备份并重新加载配置。');
     } catch (error: unknown) {
-      setDesktopActionError(getParsedApiError(error));
+      setEnvBackupActionError(getParsedApiError(error));
     } finally {
       setIsImportingEnv(false);
     }
@@ -577,8 +577,8 @@ const SettingsPage: React.FC = () => {
                     <Button
                       type="button"
                       variant="settings-secondary"
-                      onClick={() => void downloadDesktopEnv()}
-                      disabled={desktopActionDisabled}
+                      onClick={() => void downloadEnvBackup()}
+                      disabled={envBackupActionDisabled}
                       isLoading={isExportingEnv}
                       loadingText="导出中..."
                     >
@@ -587,35 +587,35 @@ const SettingsPage: React.FC = () => {
                     <Button
                       type="button"
                       variant="settings-primary"
-                      onClick={beginDesktopImport}
-                      disabled={desktopActionDisabled}
+                      onClick={beginEnvBackupImport}
+                      disabled={envBackupActionDisabled}
                       isLoading={isImportingEnv}
                       loadingText="导入中..."
                     >
                       导入 .env
                     </Button>
                     <input
-                      ref={desktopImportRef}
+                      ref={envBackupImportRef}
                       type="file"
                       accept=".env,.txt"
                       className="hidden"
                       onChange={(event) => {
-                        void handleDesktopImportFile(event);
+                        void handleEnvBackupImportFile(event);
                       }}
                     />
                   </div>
                   <p className="text-xs leading-6 text-muted-text">
                     导出内容仅包含当前已保存配置，不包含页面上尚未保存的本地草稿。
                   </p>
-                  {desktopActionError ? (
+                  {envBackupActionError ? (
                     <ApiErrorAlert
-                      error={desktopActionError}
-                      actionLabel={desktopActionError.status === 409 ? '重新加载' : undefined}
-                      onAction={desktopActionError.status === 409 ? () => void load() : undefined}
+                      error={envBackupActionError}
+                      actionLabel={envBackupActionError.status === 409 ? '重新加载' : undefined}
+                      onAction={envBackupActionError.status === 409 ? () => void load() : undefined}
                     />
                   ) : null}
-                  {!desktopActionError && desktopActionSuccess ? (
-                    <SettingsAlert title="操作成功" message={desktopActionSuccess} variant="success" />
+                  {!envBackupActionError && envBackupActionSuccess ? (
+                    <SettingsAlert title="操作成功" message={envBackupActionSuccess} variant="success" />
                   ) : null}
                 </div>
               </SettingsSectionCard>
@@ -713,7 +713,7 @@ const SettingsPage: React.FC = () => {
         cancelText="取消"
         onConfirm={() => {
           setShowImportConfirm(false);
-          desktopImportRef.current?.click();
+          envBackupImportRef.current?.click();
         }}
         onCancel={() => {
           setShowImportConfirm(false);

@@ -274,22 +274,22 @@ class SystemConfigApiTestCase(unittest.TestCase):
         self.assertEqual(context.exception.detail["error"], "invalid_import_file")
 
     def test_config_env_endpoints_work_outside_desktop_mode(self) -> None:
-        os.environ["DSA_DESKTOP_MODE"] = "false"
-        current = system_config.get_system_config(include_schema=False, service=self.service).model_dump()
+        with patch.dict(os.environ, {"DSA_DESKTOP_MODE": "false"}, clear=False):
+            current = system_config.get_system_config(include_schema=False, service=self.service).model_dump()
 
-        export_payload = system_config.export_system_config(service=self.service).model_dump()
-        import_payload = system_config.import_system_config(
-            request=ImportSystemConfigRequest(
-                config_version=current["config_version"],
-                content="STOCK_LIST=300750\n",
-                reload_now=False,
-            ),
-            service=self.service,
-        ).model_dump()
+            export_payload = system_config.export_system_config(service=self.service).model_dump()
+            import_payload = system_config.import_system_config(
+                request=ImportSystemConfigRequest(
+                    config_version=current["config_version"],
+                    content="STOCK_LIST=300750\n",
+                    reload_now=False,
+                ),
+                service=self.service,
+            ).model_dump()
 
-        self.assertIn("STOCK_LIST=600519,000001", export_payload["content"])
-        self.assertTrue(import_payload["success"])
-        self.assertEqual(self.manager.read_config_map()["STOCK_LIST"], "300750")
+            self.assertIn("STOCK_LIST=600519,000001", export_payload["content"])
+            self.assertTrue(import_payload["success"])
+            self.assertEqual(self.manager.read_config_map()["STOCK_LIST"], "300750")
 
     def test_test_llm_channel_endpoint_returns_service_payload(self) -> None:
         with patch.object(
