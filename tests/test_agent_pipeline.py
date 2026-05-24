@@ -147,7 +147,7 @@ class TestAgentConfig(unittest.TestCase):
             agent_max_steps="10",
             agent_orchestrator_timeout_s="120",
             litellm_model="openai/gpt-5",
-            agent_litellm_model="",
+            agent_litellm_model="anthropic/claude-3-7-sonnet-20250219",
             openai_base_url="https://api.openai.com/v1",
         )
         captured: Dict[str, Any] = {}
@@ -194,6 +194,7 @@ class TestAgentConfig(unittest.TestCase):
         self.assertEqual(provided_config.agent_max_steps, "10")
         self.assertEqual(provided_config.agent_orchestrator_timeout_s, "120")
         self.assertEqual(provided_config.litellm_model, "openai/gpt-5")
+        self.assertEqual(provided_config.agent_litellm_model, "anthropic/claude-3-7-sonnet-20250219")
         self.assertEqual(provided_config.openai_base_url, "https://api.openai.com/v1")
         fake_executor_cls.assert_called_once()
         kwargs = fake_executor_cls.call_args.kwargs
@@ -208,7 +209,7 @@ class TestAgentConfig(unittest.TestCase):
             agent_max_steps="10",
             agent_orchestrator_timeout_s="120",
             litellm_model="openai/gpt-5",
-            agent_litellm_model="",
+            agent_litellm_model="anthropic/claude-3-7-sonnet-20250219",
             openai_base_url="https://api.openai.com/v1",
             agent_orchestrator_mode="standard",
         )
@@ -257,6 +258,7 @@ class TestAgentConfig(unittest.TestCase):
         self.assertEqual(provided_config.agent_max_steps, "10")
         self.assertEqual(provided_config.agent_orchestrator_timeout_s, "120")
         self.assertEqual(provided_config.litellm_model, "openai/gpt-5")
+        self.assertEqual(provided_config.agent_litellm_model, "anthropic/claude-3-7-sonnet-20250219")
         self.assertEqual(provided_config.openai_base_url, "https://api.openai.com/v1")
         fake_orchestrator_cls.assert_called_once()
         kwargs = fake_orchestrator_cls.call_args.kwargs
