@@ -373,6 +373,43 @@ class TestPipelineReportRouteFiltering(unittest.TestCase):
         pipeline.notifier.record_noise_control.assert_not_called()
         pipeline.notifier.release_noise_control.assert_called_once()
 
+    def test_context_delivery_counts_as_success_and_is_recorded_with_routed_failures(self):
+        token = activate_run_diagnostic_context(
+            trace_id="trace-context",
+            query_id="query-context",
+            stock_code="000001",
+            trigger_source="bot",
+        )
+        try:
+            pipeline = StockAnalysisPipeline.__new__(StockAnalysisPipeline)
+            pipeline.notifier = _FakeRoutedNotifier([NotificationChannel.TELEGRAM])
+            pipeline.notifier.send_to_context.return_value = True
+            pipeline.notifier.send_to_telegram.return_value = False
+            pipeline.config = SimpleNamespace(stock_email_groups=[])
+            pipeline.save_context_snapshot = True
+            pipeline.db = MagicMock()
+            results = [SimpleNamespace(code="000001", query_id="query-context")]
+
+            with patch("src.core.pipeline.logger.info") as mock_info:
+                pipeline._send_notifications(results, ReportType.SIMPLE)
+            snapshot = current_diagnostic_snapshot() or {}
+        finally:
+            reset_run_diagnostic_context(token)
+
+        notification_runs = snapshot.get("notification_runs", [])
+        self.assertEqual([run.get("channel") for run in notification_runs], ["__context__", "telegram"])
+        self.assertTrue(notification_runs[0]["success"])
+        self.assertFalse(notification_runs[1]["success"])
+        self.assertTrue(
+            any(
+                call.args and call.args[0] == "决策仪表盘推送成功"
+                for call in mock_info.call_args_list
+            )
+        )
+        final_update = pipeline.db.update_analysis_history_diagnostics.call_args_list[-1]
+        persisted_runs = final_update.kwargs["diagnostics"]["notification_runs"]
+        self.assertEqual([run.get("channel") for run in persisted_runs], ["__context__", "telegram"])
+
     def test_send_notifications_records_each_channel_run_rather_than_aggregating(self):
         token = activate_run_diagnostic_context(trace_id="trace-notify")
         try:

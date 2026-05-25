@@ -2279,7 +2279,48 @@ class StockAnalysisPipeline:
             if self.notifier.is_available():
                 channels = self.notifier.get_available_channels()
                 channels = self.notifier.get_channels_for_route("report", channels=channels)
+
+                def _send_channel_safely(
+                    channel_label: str,
+                    send_func: Callable[[], bool],
+                ) -> tuple[bool, Optional[Exception]]:
+                    try:
+                        return bool(send_func()), None
+                    except Exception as e:
+                        logger.exception(
+                            "通知渠道 %s 推送异常，继续尝试其他渠道: %s",
+                            channel_label,
+                            e,
+                        )
+                        return False, e
+
+                def _record_channel_result(
+                    channel_label: str,
+                    success: bool,
+                    error_message: Optional[Exception] = None,
+                    target_results: Optional[List[AnalysisResult]] = None,
+                ) -> None:
+                    notification_run = self._build_notification_run_snapshot(
+                        channel=channel_label,
+                        status="success" if success else "failed",
+                        success=success,
+                        error_message=error_message,
+                    )
+                    record_notification_run(
+                        channel=channel_label,
+                        status="success" if success else "failed",
+                        success=success,
+                        error_message=error_message,
+                    )
+                    self._refresh_saved_diagnostic_snapshot(
+                        results=results if target_results is None else target_results,
+                        notification_run=notification_run,
+                    )
+
                 send_context = self.notifier.send_to_context(report)
+                if send_context:
+                    _record_channel_result("__context__", True)
+
                 if channels and hasattr(self.notifier, "evaluate_noise_control"):
                     report_type_key = report_type.value if isinstance(report_type, ReportType) else str(report_type)
                     codes_key = ",".join(
@@ -2333,43 +2374,6 @@ class StockAnalysisPipeline:
                     return (
                         "npm i -g markdown-to-file" if engine == "markdown-to-file"
                         else "wkhtmltopdf (apt install wkhtmltopdf / brew install wkhtmltopdf)"
-                    )
-
-                def _send_channel_safely(
-                    channel_label: str,
-                    send_func: Callable[[], bool],
-                ) -> tuple[bool, Optional[Exception]]:
-                    try:
-                        return bool(send_func()), None
-                    except Exception as e:
-                        logger.exception(
-                            "通知渠道 %s 推送异常，继续尝试其他渠道: %s",
-                            channel_label,
-                            e,
-                        )
-                        return False, e
-
-                def _record_channel_result(
-                    channel_label: str,
-                    success: bool,
-                    error_message: Optional[Exception] = None,
-                    target_results: Optional[List[AnalysisResult]] = None,
-                ) -> None:
-                    notification_run = self._build_notification_run_snapshot(
-                        channel=channel_label,
-                        status="success" if success else "failed",
-                        success=success,
-                        error_message=error_message,
-                    )
-                    record_notification_run(
-                        channel=channel_label,
-                        status="success" if success else "failed",
-                        success=success,
-                        error_message=error_message,
-                    )
-                    self._refresh_saved_diagnostic_snapshot(
-                        results=results if target_results is None else target_results,
-                        notification_run=notification_run,
                     )
 
                 image_bytes = None
@@ -2660,9 +2664,7 @@ class StockAnalysisPipeline:
                         logger.warning(f"未知通知渠道: {channel}")
 
                 has_targeted_channels = bool(channels)
-                success = wechat_success or non_wechat_success or (
-                    not has_targeted_channels and send_context
-                )
+                success = wechat_success or non_wechat_success or send_context
                 if (
                     (wechat_success or non_wechat_success)
                     and noise_decision is not None
@@ -2680,7 +2682,7 @@ class StockAnalysisPipeline:
                     logger.info("决策仪表盘推送成功")
                 else:
                     logger.warning("决策仪表盘推送失败")
-                if not has_targeted_channels:
+                if not has_targeted_channels and not send_context:
                     channel_label = ",".join(channel.value for channel in channels) or "report"
                     notification_run = self._build_notification_run_snapshot(
                         channel=channel_label,
