@@ -141,6 +141,12 @@ daily_stock_analysis/
 
 > 兼容性说明：`REPORT_SHOW_LLM_MODEL` 维持默认 `true` 的原始展示语义，关闭时只影响底部模型文案输出。该配置不会变更 provider/model/Base URL、LiteLLM 路由、模型保存、迁移或清理语义；回退方式为恢复或删除该变量，并设为 `true`。
 
+> 说明：`REPORT_LANGUAGE` 只影响报告文本与 Web 报告页固定文案；WebUI 页面语言（导航、登录页、侧边栏、设置页、通用控件）使用独立状态，不与其联动。
+> WebUI 语言状态保存在浏览器 `localStorage` 的 `dsa.uiLanguage`，启动顺序为：  
+> 1) 明确选择（`localStorage.dsa.uiLanguage`，仅支持 `zh`/`en`）  
+> 2) 浏览器语言检测（`navigator.languages` / `navigator.language`，`zh-*` 或 `en-*`）  
+> 3) 默认回退 `zh`。
+
 #### 其他配置
 
 | Secret 名称 | 说明 | 必填 |
@@ -1340,6 +1346,7 @@ FastAPI 提供 RESTful API 服务，支持配置管理和触发分析。
 ### 功能特性
 
 - 📝 **配置管理** - 查看/修改自选股列表
+- 🧭 **界面语言切换** - 登录态与退出态均支持界面语言快速切换（`zh` / `en`），独立于 `REPORT_LANGUAGE`，用于静态 UI 文案与导航骨架
 - 🚀 **快速分析** - 通过 API 接口触发个股分析；首页也提供“大盘复盘”按钮，可在 Docker/server 模式下后台触发大盘复盘
 - 🎯 **策略选择** - 首页支持显式选择分析策略 skill；不传 `skills` 时按系统默认策略运行，便于保持与历史行为兼容
 - 🧭 **首次配置提示** - 首页会读取只读配置状态，缺少 LLM 主渠道、自选股等基础项时提示缺口并引导进入系统设置
@@ -1350,6 +1357,17 @@ FastAPI 提供 RESTful API 服务，支持配置管理和触发分析。
 - 🧩 **输入数据块可见** - 普通分析报告会在历史详情、同步响应和 completed 任务状态中返回低敏 `AnalysisContextPack` overview，Web 报告页在策略点位和资讯之后默认折叠展示数据块状态、来源、缺失原因和降级摘要
 - 📈 **回测验证** - 评估历史分析准确率，查询方向胜率与模拟收益
 - 🔗 **API 文档** - 访问 `/docs` 查看 Swagger UI
+
+### 可视化验收说明（与本变更相关）
+
+本次改动涉及浏览器界面文案，建议在 PR 评审中附上以下页面的中英文切换截图：
+
+- 登录页（`/login`）
+- 首页（`/`）
+- 设置页（`/settings`）
+- 侧边导航（首页/设置页）
+
+若当前环境无法截图，可在 PR 说明中补充可访问证据：启动 `python main.py --serve-only` 或 `apps/dsa-web` 前端开发服务，确认上述页面在不同语言下可见文案确实切换，并记录复核时间与浏览器环境。
 
 ### API 接口
 
