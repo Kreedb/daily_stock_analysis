@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysisApi, DuplicateTaskError } from '../../api/analysis';
 import { historyApi } from '../../api/history';
-import type { TaskInfo, TaskListResponse } from '../../types/analysis';
+import type { HistoryListResponse, TaskInfo, TaskListResponse } from '../../types/analysis';
 import { getRecentStartDate, getTodayInShanghai } from '../../utils/format';
 import { useStockPoolStore } from '../stockPoolStore';
 
@@ -600,6 +600,124 @@ describe('stockPoolStore', () => {
     expect(historyApi.getDetail).toHaveBeenCalledWith(2);
     expect(state.historyItems.map((item) => item.id)).toEqual([2, 1]);
     expect(state.selectedReport?.meta.id).toBe(2);
+  });
+
+  it('selects the completed-task report after an overlapping refresh supersedes the original request', async () => {
+    const latestItem = {
+      ...historyItem,
+      id: 2,
+      queryId: 'q-2',
+      createdAt: '2026-03-18T09:00:00Z',
+    };
+    const latestReport = {
+      ...historyReport,
+      meta: {
+        ...historyReport.meta,
+        id: 2,
+        queryId: 'q-2',
+        createdAt: '2026-03-18T09:00:00Z',
+      },
+    };
+    const completedRefresh = createDeferred<HistoryListResponse>();
+    const overlappingRefresh = createDeferred<HistoryListResponse>();
+
+    useStockPoolStore.setState({
+      historyItems: [historyItem],
+      selectedReport: historyReport,
+    });
+    vi.mocked(historyApi.getList)
+      .mockReturnValueOnce(completedRefresh.promise)
+      .mockReturnValueOnce(overlappingRefresh.promise);
+    vi.mocked(historyApi.getDetail).mockResolvedValue(latestReport);
+
+    const completedRefreshPromise = useStockPoolStore.getState().refreshHistoryForCompletedTask(createTask({
+      status: 'completed',
+      progress: 100,
+    }));
+    const overlappingRefreshPromise = useStockPoolStore.getState().refreshHistory(true);
+
+    overlappingRefresh.resolve({
+      total: 2,
+      page: 1,
+      limit: 20,
+      items: [latestItem, historyItem],
+    });
+    await overlappingRefreshPromise;
+
+    completedRefresh.resolve({
+      total: 2,
+      page: 1,
+      limit: 20,
+      items: [latestItem, historyItem],
+    });
+    await completedRefreshPromise;
+
+    const state = useStockPoolStore.getState();
+    expect(historyApi.getDetail).toHaveBeenCalledTimes(1);
+    expect(historyApi.getDetail).toHaveBeenCalledWith(2);
+    expect(state.historyItems.map((item) => item.id)).toEqual([2, 1]);
+    expect(state.selectedReport?.meta.id).toBe(2);
+  });
+
+  it('selects the newest completed-task report when stock codes use equivalent aliases', async () => {
+    const olderTencentItem = {
+      ...historyItem,
+      id: 10,
+      queryId: 'q-10',
+      stockCode: 'HK00700',
+      stockName: '腾讯控股',
+    };
+    const olderTencentReport = {
+      ...historyReport,
+      meta: {
+        ...historyReport.meta,
+        id: 10,
+        queryId: 'q-10',
+        stockCode: 'HK00700',
+        stockName: '腾讯控股',
+      },
+    };
+    const latestTencentItem = {
+      ...olderTencentItem,
+      id: 11,
+      queryId: 'q-11',
+      stockCode: '00700.HK',
+      createdAt: '2026-03-18T09:00:00Z',
+    };
+    const latestTencentReport = {
+      ...olderTencentReport,
+      meta: {
+        ...olderTencentReport.meta,
+        id: 11,
+        queryId: 'q-11',
+        stockCode: '00700.HK',
+        createdAt: '2026-03-18T09:00:00Z',
+      },
+    };
+
+    useStockPoolStore.setState({
+      historyItems: [olderTencentItem],
+      selectedReport: olderTencentReport,
+    });
+    vi.mocked(historyApi.getList).mockResolvedValue({
+      total: 2,
+      page: 1,
+      limit: 20,
+      items: [latestTencentItem, olderTencentItem],
+    });
+    vi.mocked(historyApi.getDetail).mockResolvedValue(latestTencentReport);
+
+    await useStockPoolStore.getState().refreshHistoryForCompletedTask(createTask({
+      stockCode: '00700.HK',
+      stockName: '腾讯控股',
+      status: 'completed',
+      progress: 100,
+    }));
+
+    const state = useStockPoolStore.getState();
+    expect(historyApi.getDetail).toHaveBeenCalledWith(11);
+    expect(state.historyItems.map((item) => item.id)).toEqual([11, 10]);
+    expect(state.selectedReport?.meta.id).toBe(11);
   });
 
   it('does not replace the selected report when another stock task completes', async () => {

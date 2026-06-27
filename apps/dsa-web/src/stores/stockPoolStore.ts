@@ -5,6 +5,7 @@ import { getParsedApiError } from '../api/error';
 import { historyApi } from '../api/history';
 import type { AnalysisReport, HistoryItem, HistoryListResponse, ReportLanguage, StockBarItem, StockHistoryFilters, StockHistoryRange, TaskInfo } from '../types/analysis';
 import { getRecentStartDate, getTodayInShanghai } from '../utils/format';
+import { normalizeStockCode } from '../utils/stockCode';
 import { isObviouslyInvalidStockQuery, looksLikeStockCode, validateStockCode } from '../utils/validation';
 
 const PAGE_SIZE = 20;
@@ -40,6 +41,7 @@ let stockHistoryRequestSeq = 0;
 let activeTaskRequestSeq = 0;
 let activeTaskLocalRevision = 0;
 const dismissedTaskIds = new Set<string>();
+const pendingCompletedTaskSelectionKeys = new Set<string>();
 
 export interface StockPoolState {
   query: string;
@@ -241,7 +243,62 @@ function normalizeSelectedReport(report: AnalysisReport): AnalysisReport {
 }
 
 function normalizeStockCodeKey(stockCode: string | undefined): string {
-  return (stockCode ?? '').trim().toUpperCase();
+  const trimmed = (stockCode ?? '').trim();
+  return trimmed ? normalizeStockCode(trimmed).toUpperCase() : '';
+}
+
+function queueCompletedTaskSelection(stockCode: string | undefined): void {
+  const key = normalizeStockCodeKey(stockCode);
+  if (key) {
+    pendingCompletedTaskSelectionKeys.add(key);
+  }
+}
+
+function consumeCompletedTaskSelection(items: HistoryItem[], selectedReport: AnalysisReport | null): HistoryItem | undefined {
+  if (pendingCompletedTaskSelectionKeys.size === 0) {
+    return undefined;
+  }
+
+  if (selectedReport?.meta.reportType === 'market_review') {
+    pendingCompletedTaskSelectionKeys.clear();
+    return undefined;
+  }
+
+  if (selectedReport) {
+    const selectedStockCode = normalizeStockCodeKey(selectedReport.meta.stockCode);
+    if (!selectedStockCode || !pendingCompletedTaskSelectionKeys.has(selectedStockCode)) {
+      pendingCompletedTaskSelectionKeys.clear();
+      return undefined;
+    }
+
+    for (const key of Array.from(pendingCompletedTaskSelectionKeys)) {
+      if (key !== selectedStockCode) {
+        pendingCompletedTaskSelectionKeys.delete(key);
+      }
+    }
+
+    const latestItem = items.find(
+      (item) =>
+        item.reportType !== 'market_review' &&
+        normalizeStockCodeKey(item.stockCode) === selectedStockCode,
+    );
+    if (latestItem) {
+      pendingCompletedTaskSelectionKeys.delete(selectedStockCode);
+    }
+    return latestItem;
+  }
+
+  const latestItem = items.find((item) => {
+    if (item.reportType === 'market_review') {
+      return false;
+    }
+    const stockCode = normalizeStockCodeKey(item.stockCode);
+    return stockCode.length > 0 && pendingCompletedTaskSelectionKeys.has(stockCode);
+  });
+  if (latestItem) {
+    pendingCompletedTaskSelectionKeys.clear();
+  }
+  return latestItem;
 }
 
 function isDateInHistoryRange(createdAt: string | undefined, range: StockHistoryRange): boolean {
@@ -367,6 +424,9 @@ async function fetchHistory(
   } = options;
   const currentState = get();
   const page = reset ? 1 : currentState.currentPage + 1;
+  if (reset) {
+    queueCompletedTaskSelection(selectLatestForStockCode);
+  }
   const requestId = ++historyRequestSeq;
 
   if (!silent) {
@@ -411,26 +471,13 @@ async function fetchHistory(
       selectedHistoryIds: get().selectedHistoryIds.filter((id) => visibleIds.has(id)),
     });
 
-    if (autoSelectFirst && response.items.length > 0 && !get().selectedReport) {
-      await get().selectHistoryItem(response.items[0].id);
-    } else if (reset) {
-      const targetStockCode = normalizeStockCodeKey(selectLatestForStockCode);
+    if (reset) {
+      const latestCompletedTaskItem = consumeCompletedTaskSelection(response.items, get().selectedReport);
       const selectedReport = get().selectedReport;
-      const selectedStockCode = normalizeStockCodeKey(selectedReport?.meta.stockCode);
-      const shouldSelectLatest =
-        targetStockCode.length > 0 &&
-        (!selectedReport ||
-          (selectedReport.meta.reportType !== 'market_review' && selectedStockCode === targetStockCode));
-      const latestItem = shouldSelectLatest
-        ? response.items.find(
-            (item) =>
-              item.reportType !== 'market_review' &&
-              normalizeStockCodeKey(item.stockCode) === targetStockCode,
-          )
-        : undefined;
-
-      if (latestItem && latestItem.id !== selectedReport?.meta.id) {
-        await get().selectHistoryItem(latestItem.id);
+      if (latestCompletedTaskItem && latestCompletedTaskItem.id !== selectedReport?.meta.id) {
+        await get().selectHistoryItem(latestCompletedTaskItem.id);
+      } else if (autoSelectFirst && response.items.length > 0 && !selectedReport) {
+        await get().selectHistoryItem(response.items[0].id);
       }
     }
 
@@ -955,6 +1002,7 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
     activeTaskRequestSeq += 1;
     activeTaskLocalRevision += 1;
     dismissedTaskIds.clear();
+    pendingCompletedTaskSelectionKeys.clear();
     set({ ...initialState });
   },
 
