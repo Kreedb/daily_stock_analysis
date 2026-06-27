@@ -56,9 +56,17 @@ python -m pytest -m "not network"
 
 > `Full-suite note` 必须与当次 PR 的 CI 结果保持一致；若本地复现存在环境相关失败，请明确标注为“本地环境差异”并给出 GitHub CI 通过/失败结论与链接。
 
+- 请在下面按实际结果填写并与 `Full-suite note` 保持一致（任一未填视为信息缺失）：
+  - ai-governance：`pass` / `fail`，附链接
+  - backend-gate：`pass` / `fail`，附链接
+  - docker-build：`pass` / `fail`，附链接
+  - web-gate：`pass` / `fail`，附链接
+
 关键输出/结论 / Key output & conclusion:
 
 - 【兼容示例】若 PR 文档仍保留“历史失败”字样，请在同一段明确补充“当前 CI 已通过”；若当前 CI 通过可直接写“当前 CI 全通过（含 backend-gate:pass）”避免误导 reviewer。
+
+> 若上述核验项与 PR 文本冲突，建议先更新 PR 描述再提交，避免审查因状态不一致被阻塞。
 
 ## Visual Evidence (if applicable)
 
@@ -75,6 +83,8 @@ python -m pytest -m "not network"
 - 截图链接 / Screenshot links（必填）：
 - 前后对比 / Before & After（如有）：
 - 不适用原因 / Reason if not applicable（必填）：
+
+> 若本 PR 修改 Web UI 或报告展示且无法获取截图，原因栏必须给出可复现替代证据（例如 Playwright 截图产物路径 + 命令），且不得留空。
 
 ## Compatibility And Risk
 

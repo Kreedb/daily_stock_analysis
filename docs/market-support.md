@@ -62,6 +62,24 @@
 - 线上数据可用性来自 Yahoo Finance 指数页面与接口契约，当前实现仅覆盖 `data_provider/yfinance_fetcher.py` 的指数路由与降级行为；不对实时行情连通性作稳定性承诺。
 - 与该条目标相关的本地自动化验证默认使用离线回归：`tests/test_yfinance_jp_kr_indices.py`、`tests/test_yfinance_hk_indices.py`（共性映射/回退）与 `tests/test_trading_calendar.py`（交易日过滤）。如果要补充实时可用性复核，可在联网环境直接访问上述 Yahoo Finance 页面进行一次性抽检。
 
+- 外部兼容性边界（当前实现默认假设）：
+  - 数据源：`yfinance`（版本下限 `requirements.txt` 中的 `yfinance>=0.2.0`）
+  - 长期约束：`^N225`、`^TOPX`、`^KS11`、`^KQ11` 必须在 Yahoo Finance 端有可检索 quote 页面；无法检索视为索引级不可用，由 `market_review` fail-open 机制退化到已有市场输出，不中断主流程。
+- 兼容验证（可复核）：
+  - <https://finance.yahoo.com/quote/%5EN225/>
+  - <https://finance.yahoo.com/quote/%5ETOPX/>
+  - <https://finance.yahoo.com/quote/%5EKS11/>
+  - <https://finance.yahoo.com/quote/%5EKQ11/>
+  - 可复现联机复核命令（选做）：
+```bash
+python - <<'PY'
+from yfinance import Ticker
+for symbol in ("^N225", "^TOPX", "^KS11", "^KQ11"):
+    data = Ticker(symbol).history(period="5d")
+    print(symbol, "rows", len(data))
+PY
+```
+
 边界：
 
 - JP/KR 大盘复盘 v1 不提供涨跌家数、涨跌停、行业/板块排行或资金流统计；结构化 payload 中 `breadth` 仍只在有市场宽度数据时出现。
