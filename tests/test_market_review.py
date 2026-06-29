@@ -169,6 +169,52 @@ class MarketReviewLocalizationTestCase(unittest.TestCase):
         self.assertEqual(result.market_review_payload["language"], "en")
         self.assertEqual(result.report, "English market review body")
 
+    def test_run_market_review_returns_sector_fallback_for_merged_notification(self) -> None:
+        notifier = self._make_notifier()
+        market_analyzer = MagicMock()
+        market_analyzer.run_daily_review_with_snapshot.return_value = SimpleNamespace(
+            report="## 今日大盘\n\n盘面正文。",
+            market_light_snapshot={"region": "cn", "trade_date": "2026-06-03", "score": 60},
+            structured_payload={
+                "kind": "market_review",
+                "region": "cn",
+                "language": "zh",
+                "title": "今日大盘",
+                "sections": [
+                    {
+                        "key": "overview",
+                        "title": "概览",
+                        "markdown": "盘面正文。",
+                    }
+                ],
+                "sectors": {
+                    "top": [{"name": "AI算力", "change_pct": 3.25}],
+                    "bottom": [{"name": "煤炭", "change_pct": -1.12}],
+                },
+            },
+        )
+
+        with patch.object(
+            market_review_module,
+            "get_config",
+            return_value=SimpleNamespace(report_language="zh", market_review_region="cn"),
+        ), patch.object(
+            market_review_module,
+            "MarketAnalyzer",
+            return_value=market_analyzer,
+        ), patch.object(market_review_module, "_persist_market_review_history"):
+            result = run_market_review(
+                notifier,
+                send_notification=True,
+                merge_notification=True,
+            )
+
+        self.assertIn("## 今日大盘", result)
+        self.assertIn("### 板块主线", result)
+        self.assertIn("| 1 | AI算力 | +3.25% |", result)
+        self.assertIn("| 1 | 煤炭 | -1.12% |", result)
+        notifier.send.assert_not_called()
+
     def test_run_market_review_reraises_generation_backend_config_error(self) -> None:
         notifier = self._make_notifier()
         backend_error = GenerationError(

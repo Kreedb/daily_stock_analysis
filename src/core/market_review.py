@@ -299,6 +299,10 @@ def run_market_review(
                 market_review_payload,
                 wrapper_title=review_text["root_title"],
             )
+            merge_markdown_report = _render_market_review_merge_markdown(
+                market_review_payload,
+                review_report=review_report,
+            )
             if save_report_file:
                 # 保存报告到文件
                 date_str = datetime.now().strftime('%Y%m%d')
@@ -409,6 +413,8 @@ def run_market_review(
                     report=review_report,
                     market_review_payload=market_review_payload,
                 )
+            if merge_notification:
+                return merge_markdown_report
             return review_report
         
     except GenerationError:
@@ -492,6 +498,18 @@ def _render_market_review_payload_markdown(
     if wrapper_title:
         return f"{wrapper_title}\n\n{body}".strip()
     return body.strip()
+
+
+def _render_market_review_merge_markdown(
+    payload: Dict[str, Any],
+    *,
+    review_report: str,
+) -> str:
+    """Render market-review body for the outer combined notification wrapper."""
+    markets = payload.get("markets")
+    if isinstance(markets, dict) and markets:
+        return _render_market_review_payload_markdown(payload)
+    return _append_missing_sector_payload_block(review_report, payload)
 
 
 def _render_market_review_payload_body(payload: Dict[str, Any]) -> str:
