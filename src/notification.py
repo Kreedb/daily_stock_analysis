@@ -2814,10 +2814,10 @@ class NotificationBuilder:
                 r,
                 report_language=report_language,
             )
-            _, emoji, _ = get_signal_level(display_advice, r.sentiment_score, report_language)
+            signal_text, emoji, _ = get_signal_level(display_advice, r.sentiment_score, report_language)
             name = get_localized_stock_name(r.name, r.code, report_language)
             lines.append(
-                f"{emoji} {name}({r.code}): {display_advice} | "
+                f"{emoji} {name}({r.code}): {signal_text} | "
                 f"{labels['score_label']} {r.sentiment_score}"
             )
 

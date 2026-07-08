@@ -30,7 +30,7 @@ for optional_module in ("litellm", "json_repair"):
         sys.modules[optional_module] = mock.MagicMock()
 
 from src.config import Config
-from src.notification import NotificationService, NotificationChannel
+from src.notification import NotificationBuilder, NotificationService, NotificationChannel
 from src.notification_noise import reset_notification_noise_state
 from src.analyzer import AnalysisResult
 from bot.models import BotMessage, ChatType
@@ -983,6 +983,21 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
 
         self.assertNotIn("AI 决策信号", out)
         self.assertNotIn("动作: 卖出", out)
+
+    def test_build_stock_summary_aligns_legacy_advice_to_score_level_for_80_plus(self) -> None:
+        result = AnalysisResult(
+            code="301308.SZ",
+            name="江波龙",
+            sentiment_score=85,
+            trend_prediction="看多",
+            operation_advice="持有",
+            analysis_summary="高分但旧建议仍为持有",
+        )
+
+        out = NotificationBuilder.build_stock_summary([result])
+
+        self.assertIn("💚 江波龙(301308.SZ): 强烈买入 | 评分 85", out)
+        self.assertNotIn("🟢 江波龙(301308.SZ): 买入 | 评分 85", out)
 
     @mock.patch("src.notification.get_config")
     def test_generate_dashboard_report_appends_decision_signal_excerpt_with_renderer(

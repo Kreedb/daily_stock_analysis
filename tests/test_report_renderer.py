@@ -236,6 +236,22 @@ class TestReportRenderer(unittest.TestCase):
         self.assertIn("**💚 强烈买入** | 看多", out)
         self.assertNotIn("**🟢 买入** | 看多", out)
 
+    def test_render_markdown_summary_only_shows_strong_buy_for_80_plus_legacy_advice(self) -> None:
+        r = _make_result(
+            operation_advice="持有",
+            sentiment_score=85,
+            analysis_summary="高分但旧建议仍为持有",
+            dashboard={
+                "core_conclusion": {"one_sentence": "高分但旧建议仍为持有"},
+            },
+        )
+
+        out = render("markdown", [r], summary_only=True)
+
+        self.assertIsNotNone(out)
+        self.assertIn("💚 **贵州茅台(600519)**: 强烈买入 | 评分 85", out)
+        self.assertNotIn("🟢 **贵州茅台(600519)**: 买入 | 评分 85", out)
+
     def test_render_markdown_keeps_decision_signal_out_of_summary(self) -> None:
         """Markdown summary stays compact while full details keep DecisionSignal excerpts."""
         r = _with_decision_signal_summary(_make_result())
