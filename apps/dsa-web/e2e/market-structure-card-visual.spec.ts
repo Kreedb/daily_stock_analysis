@@ -247,8 +247,18 @@ async function renderMarketStructureCard(distIndexPath: string, testInfo: TestIn
     const screenshot = await card.screenshot({ path: screenshotPath });
     expect(screenshot).toBeTruthy();
     expect(screenshot.length).toBeGreaterThan(1024);
+    const screenshotRelPath = path.relative(process.cwd(), screenshotPath);
+
+    testInfo.annotations.push({
+      type: 'info',
+      description: `Market structure card visual evidence generated at: ${screenshotRelPath}`,
+    });
     await testInfo.attach('market-structure-card-visual', {
       path: screenshotPath,
+      contentType: 'image/png',
+    });
+    await testInfo.attach('market-structure-card-visual-bytes', {
+      body: screenshot,
       contentType: 'image/png',
     });
   } finally {
