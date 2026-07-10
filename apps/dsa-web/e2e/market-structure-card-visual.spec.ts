@@ -258,7 +258,8 @@ async function renderMarketStructureCard(distIndexPath: string, testInfo: TestIn
 }
 
 test.describe('MarketStructureCard visual smoke', () => {
-  test('renders MarketStructureCard with expected sections', async ({}, testInfo) => {
+  test('renders MarketStructureCard with expected sections', async ({ baseURL: _baseURL }, testInfo) => {
+    void _baseURL;
     const { distIndexPath } = await buildRealComponentFixture();
     expect(fs.existsSync(distIndexPath)).toBe(true);
     await renderMarketStructureCard(distIndexPath, testInfo);
