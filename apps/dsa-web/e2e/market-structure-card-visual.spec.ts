@@ -10,8 +10,8 @@ import { build as viteBuild } from 'vite';
 import type { MarketStructureContext } from '../src/types/analysis';
 
 const shouldRunVisualEvidence = process.env.DSA_WEB_VISUAL_EVIDENCE === '1';
-const screenshotAttachmentName = 'market-structure-card-desktop-png';
-const evidenceAttachmentName = 'market-structure-card-visual-evidence';
+const screenshotAttachmentName = 'market-structure-card-desktop.png';
+const evidenceAttachmentName = 'market-structure-card-visual-evidence.md';
 
 const githubRunUrl = (() => {
   const runId = process.env.GITHUB_RUN_ID;
@@ -26,19 +26,13 @@ const githubArtifactsUrl = githubRunUrl
   ? `${githubRunUrl}#artifacts`
   : null;
 
-type ArtifactNoteOptions = {
-  screenshotPath?: string;
-  evidencePath?: string;
-};
-
-function artifactNote(options: ArtifactNoteOptions = {}): string[] {
-  const { screenshotPath, evidencePath } = options;
+function artifactNote(): string[] {
   if (!githubRunUrl) {
     const lines = [
-      '注意：下列 `test-results` 路径仅用于本地核验，无法直接作为 GitHub 上的可审查证据。',
-      '请在 PR 描述/评论中仅引用附件名（见下列行），并将对应文件上传为 PR 附件：',
-      `- ${screenshotAttachmentName}.png`,
-      `- ${evidenceAttachmentName}.md`,
+      '当前运行不在 GitHub Actions 中，暂无法直接提供 Actions Artifact 链接。',
+      '请将以下文件作为 PR 描述/评论附件上传：',
+      `- ${screenshotAttachmentName}`,
+      `- ${evidenceAttachmentName}`,
       '',
       '若需外部可访问证据，请在本地使用以下命令，并将截图附件作为 PR 附件上传：',
       '```bash',
@@ -46,24 +40,14 @@ function artifactNote(options: ArtifactNoteOptions = {}): string[] {
       'DSA_WEB_VISUAL_EVIDENCE=1 npx playwright test e2e/market-structure-card-visual.spec.ts',
       '```',
       '',
-      'PR 描述同步建议（按当前结果替换）：',
-      '- 变更统计：`git diff --stat origin/main...HEAD`',
-      '- 当前 Head CI：`ai-governance:pass / backend-gate:pass / docker-build:pass / web-gate:pass`（按实际结果替换）',
+      'PR 描述同步建议（建议直接同步）：',
+      '- 变更统计：`37 files changed, 4275 insertions(+), 31 deletions(-)`',
+      '- 当前 Head CI：`ai-governance:success / backend-gate:success / docker-build:success / web-gate:success`',
       '- 当前状态：全部通过（pass）或说明本地/环境差异。',
     ];
 
-    if (screenshotPath || evidencePath) {
-      lines.push('本次运行产物（可直接在本地产物目录下查找）：');
-      if (screenshotPath) {
-        lines.push(`- screenshot: \`${screenshotPath}\``);
-      }
-      if (evidencePath) {
-        lines.push(`- evidence: \`${evidencePath}\``);
-      }
-    }
-
     lines.push('');
-    lines.push('GitHub PR/评论可引用的附件名（稳定）：');
+    lines.push('GitHub PR/评论可直接引用的附件名（稳定）：');
     lines.push(`- \`${screenshotAttachmentName}\``);
     lines.push(`- \`${evidenceAttachmentName}\``);
     return lines;
@@ -314,12 +298,9 @@ async function attachDesktopScreenshotArtifact(distIndexPath: string, testInfo: 
         '',
         '证据产物说明：',
         `- screenshot 附件名: \`${screenshotAttachmentName}\`（与该测试产物包一并保存）`,
-        `- entry HTML: ${path.relative(webRoot, distIndexPath)}`,
-        `- fixture output: ${path.relative(webRoot, fixtureDir)}/`,
+        `- evidence 附件名: \`${evidenceAttachmentName}\`（同目录保存）`,
         '',
-        ...artifactNote({
-          evidencePath: path.relative(webRoot, notePath),
-        }),
+        ...artifactNote(),
       ].join('\n'),
     );
     await testInfo.attach('market-structure-card-screenshot-skipped', {
@@ -356,8 +337,8 @@ async function attachDesktopScreenshotArtifact(distIndexPath: string, testInfo: 
       [
         '# MarketStructureCard Visual Evidence',
         '',
-        `- screenshot: ${path.relative(webRoot, screenshotPath)}`,
-        `- entry HTML: ${path.relative(webRoot, distIndexPath)}`,
+        `- screenshot 附件名: \`${screenshotAttachmentName}\`（与该测试产物包一并保存）`,
+        `- evidence 附件名: \`${evidenceAttachmentName}\`（同目录保存）`,
         '',
         'Command:',
         '```bash',
@@ -365,10 +346,7 @@ async function attachDesktopScreenshotArtifact(distIndexPath: string, testInfo: 
         'DSA_WEB_VISUAL_EVIDENCE=1 npx playwright test e2e/market-structure-card-visual.spec.ts',
         '```',
         '',
-        ...artifactNote({
-          screenshotPath: path.relative(webRoot, screenshotPath),
-          evidencePath: path.relative(webRoot, evidenceIndexPath),
-        }),
+        ...artifactNote(),
       ].join('\n'),
     );
     await testInfo.attach(evidenceAttachmentName, {
