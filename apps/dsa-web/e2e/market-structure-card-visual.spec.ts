@@ -33,8 +33,9 @@ function artifactNote(): string[] {
   }
 
   return [
-    'GitHub Actions 运行链接（如有 artifacts 上传，可直接在该页面下载）：',
+    'GitHub Actions 运行链接（含该测试截图附件）：',
     `- ${githubRunUrl}`,
+    '- 在该页面的 Artifacts/Uploads 区域下载 `market-structure-card-visual` 相关打包产物',
     '- 目标目录：`apps/dsa-web/test-results/market-structure-card-visual`',
   ];
 }

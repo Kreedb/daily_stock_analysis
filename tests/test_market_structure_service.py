@@ -684,11 +684,13 @@ def test_market_structure_service_infers_concept_board_from_missing_type_name() 
     )
 
     position = context["stock_market_position"]
-    assert position["status"] == "ok"
+    assert position["status"] == "partial"
     assert position["primary_theme"]["source"] == "concept"
     assert position["primary_theme"]["change_pct"] == 4.2
     assert position["theme_phase"] == "accelerating"
     assert position["related_boards"][0]["source"] == "concept"
+    assert position["stock_role"] == "edge"
+    assert "theme_ranking_match" in position["missing_fields"]
 
 
 def test_market_structure_service_resolves_missing_type_board_from_concept_rankings() -> None:
@@ -724,11 +726,12 @@ def test_market_structure_service_resolves_missing_type_board_from_concept_ranki
     )
 
     position = context["stock_market_position"]
-    assert position["status"] == "ok"
+    assert position["status"] == "partial"
     assert position["primary_theme"]["source"] == "concept"
     assert position["primary_theme"]["change_pct"] == 5.6
     assert position["theme_phase"] == "accelerating"
-    assert "theme_ranking_match" not in position["missing_fields"]
+    assert position["stock_role"] == "edge"
+    assert "theme_ranking_match" in position["missing_fields"]
     assert position["related_boards"][0]["source"] == "concept"
     assert position["related_boards"][0]["change_pct"] == 5.6
 
@@ -754,6 +757,7 @@ def test_market_structure_service_keeps_stock_layer_partial_without_ranking_evid
 
     position = context["stock_market_position"]
     assert position["status"] == "partial"
+    assert position["stock_role"] == "edge"
     assert position["primary_theme"]["name"] == "未上榜概念"
     assert position["theme_phase"] == "unknown"
     assert "theme_ranking_match" in position["missing_fields"]
@@ -869,10 +873,11 @@ def test_market_structure_service_prefers_ranked_related_board_fallback() -> Non
     )
 
     position = context["stock_market_position"]
-    assert position["status"] == "ok"
+    assert position["status"] == "partial"
     assert position["primary_theme"]["name"] == "机器人概念"
     assert position["primary_theme"]["rank"] == 3
-    assert "theme_ranking_match" not in position["missing_fields"]
+    assert position["stock_role"] == "edge"
+    assert "theme_ranking_match" in position["missing_fields"]
 
 
 def test_market_structure_service_prefers_board_source_for_primary_theme() -> None:

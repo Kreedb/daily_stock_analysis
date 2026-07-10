@@ -115,8 +115,16 @@ class MarketStructureService:
             sector_rankings=related_sector_rankings,
             concept_rankings=related_concept_rankings,
         )
-        primary_theme = self._infer_primary_theme(market_theme_payload, related_boards)
-        stock_role = self._infer_stock_role(primary_theme, related_boards)
+        primary_theme, primary_theme_has_market_match = self._infer_primary_theme(
+            market_theme_payload,
+            related_boards,
+        )
+        stock_role = self._infer_stock_role(
+            primary_theme,
+            related_boards,
+            primary_theme_has_market_match,
+            self._has_primary_market_evidence(primary_theme),
+        )
         theme_phase: ThemePhase = primary_theme.phase if primary_theme is not None else "unknown"
         has_primary_market_evidence = self._has_primary_market_evidence(primary_theme)
 
@@ -129,7 +137,7 @@ class MarketStructureService:
                     message="市场题材数据不完整，题材强弱仅作降级参考",
                 )
             )
-        if related_boards and not has_primary_market_evidence:
+        if related_boards and not primary_theme_has_market_match:
             missing_fields.append("theme_ranking_match")
             risk_tags.append(
                 MarketStructureRiskTag(
@@ -146,7 +154,12 @@ class MarketStructureService:
                 )
             )
 
-        if primary_theme is not None and related_boards and has_primary_market_evidence:
+        if (
+            primary_theme is not None
+            and related_boards
+            and primary_theme_has_market_match
+            and has_primary_market_evidence
+        ):
             stock_status = "ok"
         elif primary_theme is not None or related_boards:
             stock_status = "partial"
@@ -349,9 +362,9 @@ class MarketStructureService:
         self,
         market_theme_payload: Dict[str, Any],
         related_boards: List[StockBoardPosition],
-    ) -> Optional[PrimaryTheme]:
+    ) -> tuple[Optional[PrimaryTheme], bool]:
         if not related_boards:
-            return None
+            return None, False
 
         related_names = {board.name for board in related_boards}
         candidates: List[Dict[str, Any]] = []
@@ -385,7 +398,7 @@ class MarketStructureService:
                 phase=phase,
                 rank=self._safe_int(item.get("rank")),
                 change_pct=self._safe_float(item.get("change_pct")),
-            )
+            ), True
 
         first = self._select_ranked_related_board(related_boards)
         return PrimaryTheme(
@@ -394,7 +407,7 @@ class MarketStructureService:
             phase=self._phase_from_change(first.change_pct),
             rank=first.rank,
             change_pct=first.change_pct,
-        )
+        ), False
 
     @staticmethod
     def _select_ranked_related_board(
@@ -409,8 +422,14 @@ class MarketStructureService:
     def _infer_stock_role(
         primary_theme: Optional[PrimaryTheme],
         related_boards: List[StockBoardPosition],
+        has_market_match: bool,
+        has_primary_market_evidence: bool,
     ) -> str:
         if primary_theme is None:
+            return "edge" if related_boards else "unknown"
+        if not has_market_match:
+            return "edge" if related_boards else "unknown"
+        if not has_primary_market_evidence:
             return "edge" if related_boards else "unknown"
         for board in related_boards:
             if board.name == primary_theme.name:
