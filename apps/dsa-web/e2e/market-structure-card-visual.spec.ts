@@ -11,6 +11,34 @@ import type { MarketStructureContext } from '../src/types/analysis';
 
 const shouldRunVisualEvidence = process.env.DSA_WEB_VISUAL_EVIDENCE === '1';
 
+const githubRunUrl = (() => {
+  const runId = process.env.GITHUB_RUN_ID;
+  const repository = process.env.GITHUB_REPOSITORY;
+  const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
+  if (!runId || !repository) {
+    return null;
+  }
+  return `${server}/${repository}/actions/runs/${runId}`;
+})();
+
+function artifactNote(): string[] {
+  if (!githubRunUrl) {
+    return [
+      '若需外部可访问证据，请在本地使用以下命令并将 PNG 作为 PR 附件上传：',
+      '```bash',
+      'cd apps/dsa-web',
+      'DSA_WEB_VISUAL_EVIDENCE=1 npx playwright test e2e/market-structure-card-visual.spec.ts',
+      '```',
+    ];
+  }
+
+  return [
+    'GitHub Actions 运行链接（如有 artifacts 上传，可直接在该页面下载）：',
+    `- ${githubRunUrl}`,
+    '- 目标目录：`apps/dsa-web/test-results/market-structure-card-visual`',
+  ];
+}
+
 if (!shouldRunVisualEvidence) {
   test.skip(true, 'Set DSA_WEB_VISUAL_EVIDENCE=1 to capture MarketStructureCard visual evidence.');
 }
@@ -244,11 +272,12 @@ async function attachDesktopScreenshotArtifact(distIndexPath: string, testInfo: 
         'DSA_WEB_VISUAL_EVIDENCE=1 npx playwright test e2e/market-structure-card-visual.spec.ts',
         '```',
         '',
-        'Local evidence path:',
+        '证据产物说明：',
+        '- screenshot 附件: `market-structure-card-desktop-png`（与该测试产物包一并保存）',
         `- entry HTML: ${path.relative(webRoot, distIndexPath)}`,
         `- fixture output: ${path.relative(webRoot, fixtureDir)}/`,
         '',
-        '建议在 PR 里附上 Actions Artifact 的下载链接（该文件若为附件上传产物通常可直接引用）。',
+        ...artifactNote(),
       ].join('\n'),
     );
     await testInfo.attach('market-structure-card-screenshot-skipped', {
@@ -294,7 +323,7 @@ async function attachDesktopScreenshotArtifact(distIndexPath: string, testInfo: 
         'DSA_WEB_VISUAL_EVIDENCE=1 npx playwright test e2e/market-structure-card-visual.spec.ts',
         '```',
         '',
-        '建议以 Actions artifact（目录 `apps/dsa-web/test-results/market-structure-card-visual`）或 PR 附件方式共享截图。',
+        ...artifactNote(),
       ].join('\n'),
     );
     await testInfo.attach('market-structure-card-visual-evidence', {
