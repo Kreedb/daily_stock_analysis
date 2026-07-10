@@ -254,6 +254,8 @@ def test_build_action_fields_prioritizes_negated_hold_advice_over_embedded_trade
 @pytest.mark.parametrize(
     "advice",
     [
+        "预警，不建议买入",
+        "alert, do not buy",
         "风险预警，避免买入",
         "risk alert, do not buy",
         "risk alert, avoid buying",

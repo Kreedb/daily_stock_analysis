@@ -393,6 +393,19 @@ def normalize_decision_action(value: Any) -> Optional[DecisionAction]:
     if compound_guard_action is not None:
         return compound_guard_action
 
+    negated_matches: set[DecisionAction] = set()
+    if _has_english_avoided_hold_action(text):
+        negated_matches.add("hold")
+    negated_matches.update(_english_negated_action_matches(text))
+    for action, phrases in _NEGATED_ACTION_PHRASES.items():
+        if any(_word_or_substring_match(text, phrase) for phrase in phrases):
+            negated_matches.add(action)
+
+    if len(negated_matches) == 1:
+        return next(iter(negated_matches))
+    if len(negated_matches) > 1:
+        return None
+
     segmented_actions = _explicit_segment_actions(value)
     segmented_guard_actions = segmented_actions & set(_GUARD_ACTIONS)
     segmented_trade_actions = segmented_actions - set(_GUARD_ACTIONS)
@@ -408,14 +421,6 @@ def normalize_decision_action(value: Any) -> Optional[DecisionAction]:
                 return "watch" if "watch" in segmented_trade_actions else "hold"
             return None
 
-    negated_matches: set[DecisionAction] = set()
-    if _has_english_avoided_hold_action(text):
-        negated_matches.add("hold")
-    negated_matches.update(_english_negated_action_matches(text))
-    for action, phrases in _NEGATED_ACTION_PHRASES.items():
-        if any(_word_or_substring_match(text, phrase) for phrase in phrases):
-            negated_matches.add(action)
-
     guard_matches: set[DecisionAction] = set()
     for action in _GUARD_ACTIONS:
         if any(_word_or_substring_match(text, phrase) for phrase in _ACTION_PHRASES[action]):
@@ -427,11 +432,6 @@ def normalize_decision_action(value: Any) -> Optional[DecisionAction]:
             continue
         if any(_word_or_substring_match(text, phrase) for phrase in phrases):
             matches.add(action)
-
-    if len(negated_matches) == 1:
-        return next(iter(negated_matches))
-    if len(negated_matches) > 1:
-        return None
 
     if matches and matches <= {"hold", "watch"}:
         if guard_matches:
