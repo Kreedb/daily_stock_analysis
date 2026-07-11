@@ -511,6 +511,10 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
+  const handleDashboardDataRefresh = useCallback(() => {
+    setTodayAnalysisRefreshVersion((version) => version + 1);
+  }, []);
+
   useDashboardLifecycle({
     loadInitialHistory,
     refreshHistory,
@@ -524,6 +528,7 @@ const HomePage: React.FC = () => {
     syncTaskFailed,
     refreshActiveTasks,
     removeTask,
+    onDashboardDataRefresh: handleDashboardDataRefresh,
     onCompletedTaskDataRefreshed: handleCompletedTaskDataRefreshed,
   });
 

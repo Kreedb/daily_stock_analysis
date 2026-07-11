@@ -1053,6 +1053,53 @@ describe('HomePage', () => {
     expect(screen.queryByRole('button', { name: /Apple/ })).not.toBeInTheDocument();
   });
 
+  it('refreshes the Today ranking when the dashboard becomes visible', async () => {
+    const todayInShanghai = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+    let refreshed = false;
+    vi.mocked(historyApi.getList).mockImplementation((params: { startDate?: string } = {}) => {
+      if (params.startDate) {
+        return Promise.resolve({
+          total: 1,
+          page: 1,
+          limit: 100,
+          items: [{
+            id: refreshed ? 42 : 41,
+            queryId: refreshed ? 'q-nvda-visible' : 'q-aapl-visible',
+            stockCode: refreshed ? 'NVDA' : 'AAPL',
+            stockName: refreshed ? 'NVIDIA' : 'Apple',
+            reportType: 'detailed' as const,
+            sentimentScore: refreshed ? 93 : 72,
+            operationAdvice: refreshed ? '买入' : '观察',
+            createdAt: `${todayInShanghai}T10:00:00`,
+          }],
+        });
+      }
+
+      return Promise.resolve({ total: 0, page: 1, limit: 20, items: [] });
+    });
+
+    render(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '今日' }));
+    expect(await screen.findByRole('button', { name: /Apple/ })).toBeInTheDocument();
+
+    refreshed = true;
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'visible',
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(await screen.findByRole('button', { name: /NVIDIA/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Apple/ })).not.toBeInTheDocument();
+  });
+
   it('submits a watchlist in multiple chunks and reports the confirmed totals', async () => {
     configureWatchlistBatch(51);
     vi.mocked(analysisApi.analyzeAsync).mockImplementation(async ({ stockCodes = [] }) => ({

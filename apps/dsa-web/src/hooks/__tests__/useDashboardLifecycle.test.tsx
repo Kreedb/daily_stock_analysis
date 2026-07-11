@@ -38,6 +38,7 @@ describe('useDashboardLifecycle', () => {
     const loadInitialHistory = vi.fn().mockResolvedValue(undefined);
     const refreshHistory = vi.fn().mockResolvedValue(undefined);
     const refreshActiveTasks = vi.fn().mockResolvedValue(undefined);
+    const onDashboardDataRefresh = vi.fn();
 
     renderHook(() =>
       useDashboardLifecycle({
@@ -48,6 +49,7 @@ describe('useDashboardLifecycle', () => {
         syncTaskUpdated: vi.fn(),
         syncTaskFailed: vi.fn(),
         removeTask: vi.fn(),
+        onDashboardDataRefresh,
         ...defaultMocks,
       }),
     );
@@ -62,6 +64,7 @@ describe('useDashboardLifecycle', () => {
     expect(refreshHistory).toHaveBeenCalledWith(true);
     expect(defaultMocks.refreshMarketReviewHistory).toHaveBeenCalledWith(true);
     expect(refreshActiveTasks).toHaveBeenCalledTimes(2);
+    expect(onDashboardDataRefresh).toHaveBeenCalledTimes(1);
 
     act(() => {
       Object.defineProperty(document, 'visibilityState', {
@@ -74,6 +77,7 @@ describe('useDashboardLifecycle', () => {
     expect(refreshHistory).toHaveBeenCalledTimes(2);
     expect(defaultMocks.refreshMarketReviewHistory).toHaveBeenCalledTimes(2);
     expect(refreshActiveTasks).toHaveBeenCalledTimes(3);
+    expect(onDashboardDataRefresh).toHaveBeenCalledTimes(2);
   });
 
   it('cleans pending task removal timers on unmount', () => {

@@ -1069,10 +1069,9 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
       }
       set({ stockBarRefreshFailed: true });
     } finally {
-      if (requestSeq !== stockBarRequestSeq) {
-        return;
+      if (requestSeq === stockBarRequestSeq) {
+        set({ isLoadingStockBar: false });
       }
-      set({ isLoadingStockBar: false });
     }
   },
 
@@ -1093,10 +1092,9 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
       }
       set({ stockBarRefreshFailed: true });
     } finally {
-      if (requestSeq !== stockBarRequestSeq) {
-        return;
+      if (requestSeq === stockBarRequestSeq) {
+        set({ isLoadingStockBar: false });
       }
-      set({ isLoadingStockBar: false });
     }
   },
 }));
