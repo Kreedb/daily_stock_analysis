@@ -663,6 +663,28 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
     """报告生成与选路相关测试。"""
 
     @mock.patch("src.notification.get_config")
+    def test_report_rows_and_summary_use_same_score_aligned_action(
+        self, mock_get_config: mock.MagicMock
+    ):
+        mock_get_config.return_value = _make_config(report_renderer_enabled=False)
+        service = NotificationService()
+        result = AnalysisResult(
+            code="AAPL",
+            name="Apple",
+            sentiment_score=72,
+            trend_prediction="Bullish",
+            operation_advice="Hold",
+            decision_type="hold",
+            report_language="en",
+        )
+
+        out = service.generate_brief_report([result], report_date="2026-07-11")
+
+        self.assertIn("🟢1 🟡0 🔴0", out)
+        self.assertIn("Buy | Score 72", out)
+        self.assertNotIn("Hold | Score 72", out)
+
+    @mock.patch("src.notification.get_config")
     def test_generate_aggregate_report_routes_by_report_type(self, mock_get_config: mock.MagicMock):
         mock_get_config.return_value = _make_config()
         service = NotificationService()
@@ -1139,7 +1161,7 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
         self.assertNotIn("消息面", out)
 
     @mock.patch("src.notification.get_config")
-    def test_generate_single_stock_report_localizes_english_fallback(self, mock_get_config: mock.MagicMock):
+    def test_generate_single_stock_report_aligns_english_fallback_with_score(self, mock_get_config: mock.MagicMock):
         mock_get_config.return_value = _make_config(report_renderer_enabled=False, report_language="en")
         service = NotificationService()
         result = AnalysisResult(
@@ -1166,7 +1188,7 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
 
         self.assertIn("Core Conclusion", out)
         self.assertIn("Action Levels", out)
-        self.assertIn("Hold", out)
+        self.assertIn("Buy", out)
 
     def _make_fundamental_context(self) -> dict:
         return {
