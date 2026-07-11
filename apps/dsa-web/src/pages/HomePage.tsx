@@ -280,6 +280,7 @@ const HomePage: React.FC = () => {
     loadMoreStockHistory,
     stockBarItems,
     isLoadingStockBar,
+    stockBarRefreshFailed,
     loadStockBar,
     refreshStockBar,
   } = useHomeDashboardState();
@@ -969,10 +970,13 @@ const HomePage: React.FC = () => {
         : undefined;
       const isMissingFromStockBar = Boolean(key && !stockBarItemByCode.has(key));
       const isTodayStatusUnknown = Boolean(
-        isMissingFromStockBar
-        && canLookupWatchlistHistory
-        && watchlistHistoryLookupState.signature === watchlistMissingHistorySignature
-        && watchlistHistoryLookupState.failedKeys.has(key),
+        stockBarRefreshFailed
+        || (
+          isMissingFromStockBar
+          && canLookupWatchlistHistory
+          && watchlistHistoryLookupState.signature === watchlistMissingHistorySignature
+          && watchlistHistoryLookupState.failedKeys.has(key)
+        ),
       );
       const isTodayStatusLoading = Boolean(
         isMissingFromStockBar
@@ -996,6 +1000,7 @@ const HomePage: React.FC = () => {
   ), [
     activeTaskByCode,
     canLookupWatchlistHistory,
+    stockBarRefreshFailed,
     stockBarItemByCode,
     todayDateKey,
     watchlistHistoryItemsByCode,

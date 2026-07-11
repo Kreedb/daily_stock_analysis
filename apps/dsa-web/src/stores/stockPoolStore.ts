@@ -87,6 +87,7 @@ export interface StockPoolState {
   markdownDrawerOpen: boolean;
   stockBarItems: StockBarItem[];
   isLoadingStockBar: boolean;
+  stockBarRefreshFailed: boolean;
   setQuery: (query: string) => void;
   clearError: () => void;
   clearInlineMessages: () => void;
@@ -163,6 +164,7 @@ const initialState = {
   markdownDrawerOpen: false,
   stockBarItems: [] as StockBarItem[],
   isLoadingStockBar: false,
+  stockBarRefreshFailed: false,
 };
 
 function buildHistoryParams(page: number) {
@@ -1054,9 +1056,9 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
         startDate: getRecentStartDate(90),
         endDate: getTodayInShanghai(),
       });
-      set({ stockBarItems: response.items });
+      set({ stockBarItems: response.items, stockBarRefreshFailed: false });
     } catch {
-      // keep existing items on error
+      set({ stockBarRefreshFailed: true });
     } finally {
       set({ isLoadingStockBar: false });
     }
@@ -1068,9 +1070,9 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
         startDate: getRecentStartDate(90),
         endDate: getTodayInShanghai(),
       });
-      set({ stockBarItems: response.items });
+      set({ stockBarItems: response.items, stockBarRefreshFailed: false });
     } catch {
-      // keep existing items on error
+      set({ stockBarRefreshFailed: true });
     }
   },
 }));

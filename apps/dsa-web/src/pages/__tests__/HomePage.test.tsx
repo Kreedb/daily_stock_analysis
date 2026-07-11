@@ -477,6 +477,60 @@ describe('HomePage', () => {
     expect(analysisApi.analyzeAsync).not.toHaveBeenCalled();
   });
 
+  it('blocks pending watchlist submission when the stock-bar refresh after completion fails', async () => {
+    vi.mocked(systemConfigApi.getWatchlist).mockResolvedValue(['600519']);
+    vi.mocked(historyApi.getStockBarList)
+      .mockResolvedValueOnce({
+        total: 1,
+        items: [{
+          id: 11,
+          stockCode: '600519',
+          stockName: '贵州茅台',
+          reportType: 'detailed',
+          sentimentScore: 72,
+          operationAdvice: '观察',
+          analysisCount: 1,
+          lastAnalysisTime: '2026-01-01T09:00:00+08:00',
+        }],
+      })
+      .mockRejectedValueOnce(new Error('temporary stock-bar failure'));
+    vi.mocked(historyApi.getList).mockResolvedValue({
+      total: 0,
+      page: 1,
+      limit: 20,
+      items: [],
+    });
+
+    render(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '自选' }));
+    expect(await screen.findByLabelText('今日未分析')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '仅未分析' })).toBeEnabled();
+
+    const taskStreamOptions = vi.mocked(useTaskStream).mock.calls.at(-1)?.[0];
+    act(() => {
+      taskStreamOptions?.onTaskCompleted?.({
+        taskId: 'task-600519',
+        stockCode: '600519',
+        stockName: '贵州茅台',
+        status: 'completed',
+        progress: 100,
+        reportType: 'detailed',
+        createdAt: '2026-03-18T08:00:00Z',
+      });
+    });
+
+    expect(await screen.findByLabelText('今日状态未知')).toBeInTheDocument();
+    const analyzePendingButton = screen.getByRole('button', { name: '仅未分析' });
+    expect(analyzePendingButton).toBeDisabled();
+    fireEvent.click(analyzePendingButton);
+    expect(analysisApi.analyzeAsync).not.toHaveBeenCalled();
+  });
+
   it('falls back to watchlist history lookup when watchlist code is outside stock-bar window', async () => {
     const todayInShanghai = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
     vi.mocked(systemConfigApi.getWatchlist).mockResolvedValue(['AAPL']);
