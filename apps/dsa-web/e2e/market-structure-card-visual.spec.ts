@@ -220,7 +220,7 @@ async function startStaticServer(rootDir: string): Promise<{
 }
 
 async function renderMarketStructureCard(distIndexPath: string, testInfo: TestInfo): Promise<void> {
-  let browser;
+  let browser: { close: () => Promise<void> } | null = null;
   try {
     browser = await chromium.launch();
   } catch (error) {
@@ -264,24 +264,15 @@ async function renderMarketStructureCard(distIndexPath: string, testInfo: TestIn
       : '';
     const reproductionCommand = 'cd apps/dsa-web && npx playwright test e2e/market-structure-card-visual.spec.ts';
     const artifactHint = `${artifactRunHint}/artifacts`;
+    const artifactPageHint = githubRepository && githubRunId
+      ? `${githubServer}/${githubRepository}/actions/runs/${githubRunId}/jobs`
+      : '';
     const externalEvidenceDir = process.env.DSA_WEB_VISUAL_EVIDENCE
       ? path.resolve(process.env.DSA_WEB_VISUAL_EVIDENCE)
       : '';
     const externalEvidenceUrl = process.env.DSA_WEB_VISUAL_EVIDENCE && isHttpUrl(process.env.DSA_WEB_VISUAL_EVIDENCE)
       ? process.env.DSA_WEB_VISUAL_EVIDENCE
       : '';
-    if (externalEvidenceDir && !externalEvidenceUrl) {
-      try {
-        fs.mkdirSync(externalEvidenceDir, { recursive: true });
-        const externalScreenshot = path.join(externalEvidenceDir, 'market-structure-card-visual.png');
-        fs.copyFileSync(screenshotPath, externalScreenshot);
-      } catch (copyError) {
-        testInfo.annotations.push({
-          type: 'warning',
-          description: `External visual evidence copy failed: ${String(copyError)}`,
-        });
-      }
-    }
     const artifactManifestPath = testInfo.outputPath('market-structure-card-visual-artifact.txt');
     const evidenceNotes = [
       'MarketStructureCard visual evidence attached',
@@ -294,18 +285,34 @@ async function renderMarketStructureCard(distIndexPath: string, testInfo: TestIn
     }
     if (externalEvidenceUrl) {
       evidenceNotes.push(`External visual evidence URL: ${externalEvidenceUrl}`);
+      evidenceNotes.push(`可复用外部链接查看本次截图（复制后用于 PR 说明）：${externalEvidenceUrl}`);
+    }
+    if (externalEvidenceDir && !externalEvidenceUrl) {
+      try {
+        fs.mkdirSync(externalEvidenceDir, { recursive: true });
+        const externalScreenshot = path.join(externalEvidenceDir, 'market-structure-card-visual.png');
+        fs.copyFileSync(screenshotPath, externalScreenshot);
+        evidenceNotes.push(`Local shareable evidence copy: ${externalScreenshot}`);
+      } catch (copyError) {
+        testInfo.annotations.push({
+          type: 'warning',
+          description: `External visual evidence copy failed: ${String(copyError)}`,
+        });
+      }
     }
     if (githubRepository && githubRunId) {
       evidenceNotes.push(
         `GitHub Actions run: ${artifactRunHint}`,
         `GitHub Actions artifacts page: ${artifactHint}`,
+        `GitHub Actions jobs page: ${artifactPageHint}`,
         `Download command: ${artifactDownloadHint}`,
-        `Evidence attachment name: ${artifactName}（请在 PR 说明/评论附上截图附件或其下载链接）`,
+        `Evidence attachment name: ${artifactName}（请在 PR 说明/评论附上 screenshots 直接附件或该 run 的附件下载链接）`,
       );
     } else {
       evidenceNotes.push(
-        '未在 GitHub Actions 运行，不具备公开 artifact 链接；请在 PR 中附上截图附件名和本地复现命令。',
+        '未在 GitHub Actions 运行，不具备公开 artifact 链接；请补充可复现截图与复现场景。',
         '可复现证据路径（本地）：' + testInfo.outputPath('market-structure-card-visual.png'),
+        `复现命令：${reproductionCommand}`,
       );
     }
     evidenceNotes.push(
@@ -338,7 +345,9 @@ async function renderMarketStructureCard(distIndexPath: string, testInfo: TestIn
       contentType: 'image/png',
     });
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
     await staticServer.close();
   }
 }
