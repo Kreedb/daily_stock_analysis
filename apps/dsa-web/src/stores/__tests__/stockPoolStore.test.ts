@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysisApi, DuplicateTaskError } from '../../api/analysis';
 import { historyApi } from '../../api/history';
-import type { AnalysisReport, HistoryListResponse, TaskInfo, TaskListResponse } from '../../types/analysis';
+import type {
+  AnalysisReport,
+  HistoryListResponse,
+  StockBarResponse,
+  TaskInfo,
+  TaskListResponse,
+} from '../../types/analysis';
 import { getRecentStartDate, getTodayInShanghai } from '../../utils/format';
 import { useStockPoolStore } from '../stockPoolStore';
 
@@ -33,6 +39,16 @@ const historyItem = {
   sentimentScore: 82,
   operationAdvice: '买入',
   createdAt: '2026-03-18T08:00:00Z',
+};
+
+const stockBarItem = {
+  id: 1,
+  stockCode: '600519',
+  stockName: '贵州茅台',
+  sentimentScore: 82,
+  operationAdvice: '买入',
+  analysisCount: 1,
+  lastAnalysisTime: '2026-03-18T08:00:00Z',
 };
 
 const historyReport = {
@@ -1192,18 +1208,8 @@ describe('stockPoolStore', () => {
   });
 
   it('clears stock-bar loading when a refresh supersedes the initial load', async () => {
-    const initialStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
-    const refreshStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
+    const initialStockBarRequest = createDeferred<StockBarResponse>();
+    const refreshStockBarRequest = createDeferred<StockBarResponse>();
 
     vi.mocked(historyApi.getStockBarList)
       .mockReturnValueOnce(initialStockBarRequest.promise)
@@ -1215,9 +1221,7 @@ describe('stockPoolStore', () => {
     const refreshPromise = useStockPoolStore.getState().refreshStockBar();
     refreshStockBarRequest.resolve({
       total: 1,
-      page: 1,
-      limit: 20,
-      items: [historyItem],
+      items: [stockBarItem],
     });
     await refreshPromise;
 
@@ -1225,29 +1229,17 @@ describe('stockPoolStore', () => {
 
     initialStockBarRequest.resolve({
       total: 0,
-      page: 1,
-      limit: 20,
       items: [],
     });
     await initialPromise;
 
-    expect(useStockPoolStore.getState().stockBarItems).toEqual([historyItem]);
+    expect(useStockPoolStore.getState().stockBarItems).toEqual([stockBarItem]);
     expect(useStockPoolStore.getState().isLoadingStockBar).toBe(false);
   });
 
   it('keeps stock-bar failure state when a stale older request succeeds after a newer failure', async () => {
-    const staleStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
-    const latestStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
+    const staleStockBarRequest = createDeferred<StockBarResponse>();
+    const latestStockBarRequest = createDeferred<StockBarResponse>();
 
     vi.mocked(historyApi.getStockBarList)
       .mockReturnValueOnce(staleStockBarRequest.promise)
@@ -1259,9 +1251,7 @@ describe('stockPoolStore', () => {
     latestStockBarRequest.reject(new Error('latest failed'));
     staleStockBarRequest.resolve({
       total: 1,
-      page: 1,
-      limit: 20,
-      items: [historyItem],
+      items: [stockBarItem],
     });
 
     await Promise.all([stalePromise, latestPromise]);
@@ -1273,31 +1263,19 @@ describe('stockPoolStore', () => {
   });
 
   it('keeps newer stock-bar results when a stale earlier request fails after newer success', async () => {
-    const staleStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
-    const latestStockBarRequest = createDeferred<{
-      total: number;
-      page: number;
-      limit: number;
-      items: typeof historyItem[];
-    }>();
+    const staleStockBarRequest = createDeferred<StockBarResponse>();
+    const latestStockBarRequest = createDeferred<StockBarResponse>();
 
     const latestItems = [
       {
-        ...historyItem,
+        ...stockBarItem,
         id: 8,
-        queryId: 'q-latest',
       },
     ];
     const staleItems = [
       {
-        ...historyItem,
+        ...stockBarItem,
         id: 9,
-        queryId: 'q-stale',
       },
     ];
 
@@ -1310,16 +1288,12 @@ describe('stockPoolStore', () => {
 
     latestStockBarRequest.resolve({
       total: latestItems.length,
-      page: 1,
-      limit: 20,
       items: latestItems,
     });
     await latestPromise;
 
     staleStockBarRequest.resolve({
       total: staleItems.length,
-      page: 1,
-      limit: 20,
       items: staleItems,
     });
     await stalePromise;
