@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > For user-friendly release highlights, see the [GitHub Releases](https://github.com/ZhuLinsen/daily_stock_analysis/releases) page.
 
 ## [Unreleased]
+- [修复] 桌面与 Docker 发布显式安装 `orjson`，桌面 PyInstaller 产物同时冻结并执行运行时导入探针，避免 LiteLLM 调用时报 `No module named 'orjson'`。
+- [改进] 个股报告不再单独展示“题材主线与个股位置”卡片，相关市场结构数据仍保留在分析上下文、模型 Prompt 与决策信号提取链路中。
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
 
